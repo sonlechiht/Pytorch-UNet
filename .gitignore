@@ -7,3 +7,7 @@ checkpoints/
 venv/
 .idea/
 wandb/
+Result/
+savecheckpoints/
+traindata/
+venv/

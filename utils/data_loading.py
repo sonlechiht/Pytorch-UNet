@@ -86,7 +86,8 @@ class BasicDataset(Dataset):
                 img = img.transpose((2, 0, 1))
 
             if (img > 1).any():
-                img = img / 255.0
+                # img = img / 255.0
+                img = img / 65535.0
 
             return img
 
