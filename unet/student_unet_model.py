@@ -75,6 +75,32 @@ class Up(nn.Module):
 
         x = torch.cat([x2, x1], dim=1)
         return self.conv(x)
+    
+class Up2(nn.Module):
+    def __init__(self, in_ch, skip_ch, out_ch, bilinear=True):
+        super().__init__()
+
+        if bilinear:
+            self.up = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
+        else:
+            self.up = nn.ConvTranspose2d(in_ch, in_ch // 2, kernel_size=2, stride=2)
+
+        self.conv = DoubleDSConv(in_ch // 2 + skip_ch, out_ch)
+
+    def forward(self, x1, x2):
+        x1 = self.up(x1)
+
+        # padding nếu lệch size
+        diffY = x2.size()[2] - x1.size()[2]
+        diffX = x2.size()[3] - x1.size()[3]
+
+        x1 = F.pad(x1, [
+            diffX // 2, diffX - diffX // 2,
+            diffY // 2, diffY - diffY // 2
+        ])
+
+        x = torch.cat([x2, x1], dim=1)
+        return self.conv(x)
 
 
 # =========================
@@ -139,3 +165,107 @@ class StudentUNet(nn.Module):
             return logits, features
 
         return logits
+    
+class StudentUNet2(nn.Module):
+    def __init__(self, n_channels, n_classes, base_c=16, bilinear=True, return_features=False):
+        super().__init__()
+
+        self.return_features = return_features
+
+        # Encoder (giảm depth còn 3 level)
+        self.inc = DoubleDSConv(n_channels, base_c)        # 16
+        self.down1 = Down(base_c, base_c * 2)              # 32
+        self.down2 = Down(base_c * 2, base_c * 4)          # 64
+
+        # Bottleneck
+        self.bottleneck = Down(base_c * 4, base_c * 8)     # 128
+
+        # Decoder
+        self.up1 = Up2(base_c * 8, base_c * 4, base_c * 4, bilinear)
+        self.up2 = Up2(base_c * 4, base_c * 2, base_c * 2, bilinear)
+        self.up3 = Up2(base_c * 2, base_c, base_c, bilinear)
+
+        self.outc = OutConv(base_c, n_classes)
+
+    def forward(self, x):
+        # Encoder
+        x1 = self.inc(x)
+        x2 = self.down1(x1)
+        x3 = self.down2(x2)
+
+        # Bottleneck
+        x4 = self.bottleneck(x3)
+
+        # Decoder
+        x = self.up1(x4, x3)
+        x = self.up2(x, x2)
+        x = self.up3(x, x1)
+
+        logits = self.outc(x)
+
+        if self.return_features:
+            features = {
+                "enc1": x1,
+                "enc2": x2,
+                "enc3": x3,
+                "bottleneck": x4
+            }
+            return logits, features
+
+        return logits
+
+class StudentUNet3(nn.Module):
+    def __init__(self, n_channels, n_classes, base_c=16, bilinear=True, return_features=False):
+        super().__init__()
+        self.n_channels = n_channels
+        self.n_classes = n_classes
+        self.bilinear = bilinear
+        self.return_features = return_features
+
+        # Encoder (giảm depth còn 3 level)
+        self.inc = DoubleDSConv(n_channels, base_c)        # 16
+        self.down1 = Down(base_c, base_c * 2)              # 32
+        self.down2 = Down(base_c * 2, base_c * 4)          # 64
+        self.down3 = Down(base_c * 4, base_c * 8)          # 128
+
+        # Bottleneck
+        self.bottleneck = Down(base_c * 8, base_c * 16)     # 256
+
+        # Decoder
+        self.up1 = Up2(base_c * 16, base_c * 8, base_c * 8, bilinear)
+        self.up2 = Up2(base_c * 8, base_c * 4, base_c * 4, bilinear)
+        self.up3 = Up2(base_c * 4, base_c * 2, base_c * 2, bilinear)
+        self.up4 = Up2(base_c * 2, base_c, base_c, bilinear)
+
+        self.outc = OutConv(base_c, n_classes)
+
+    def forward(self, x):
+        # Encoder
+        x1 = self.inc(x)
+        x2 = self.down1(x1)
+        x3 = self.down2(x2)
+        x4 = self.down3(x3)
+
+        # Bottleneck
+        x5 = self.bottleneck(x4)
+
+        # Decoder
+        x = self.up1(x5, x4)
+        x = self.up2(x, x3)
+        x = self.up3(x, x2)
+        x = self.up4(x, x1)
+
+        logits = self.outc(x)
+
+        if self.return_features:
+            features = {
+                "enc1": x1,
+                "enc2": x2,
+                "enc3": x3,
+                "enc4": x4,
+                "bottleneck": x5
+            }
+            return logits, features
+
+        return logits
+     
