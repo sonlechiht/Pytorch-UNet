@@ -21,9 +21,9 @@ from utils.data_loading import BasicDataset, CarvanaDataset
 from utils.dice_score import dice_loss
 from pytorch_msssim import ssim
 
-dir_img = Path('./traindata/data15/imgs/')
-dir_mask = Path('./traindata/data15/masks/')
-dir_checkpoint = Path('./savecheckpoints/checkpoints20260504_32/')
+dir_img = Path('./traindata/data17/imgs/')
+dir_mask = Path('./traindata/data17/masks/')
+dir_checkpoint = Path('./savecheckpoints/checkpoints20260601_20-40/')
 
 import torch.nn.functional as F
 
@@ -133,7 +133,7 @@ def train_model(
     )
 
     loader_args = dict(batch_size=batch_size,
-                       num_workers=os.cpu_count(),
+                       num_workers=int(os.cpu_count()-1),
                        pin_memory=True)
 
     train_loader = DataLoader(train_set, shuffle=True, **loader_args)
@@ -211,7 +211,7 @@ def train_model(
                     # loss_edge = edge_loss(preds, targets)
                     
                     # loss = 0.6 * loss_l1 + 0.2 * loss_ssim + 0.2 * loss_edge
-                    loss = 0.8 * loss_l1 + 0.2 * loss_ssim 
+                    loss = 0.7 * loss_l1 + 0.3 * loss_ssim 
 
                 optimizer.zero_grad(set_to_none=True)
 
@@ -263,6 +263,7 @@ def get_args():
 if __name__ == '__main__':
     args = get_args()
     args.load = ""
+    args.load = "savecheckpoints/checkpoints20260601/checkpoint_epoch20.pth"
     logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     logging.info(f'Using device {device}')
@@ -270,8 +271,8 @@ if __name__ == '__main__':
     # Change here to adapt to your data
     # n_channels=3 for RGB images
     # n_classes is the number of probabilities you want to get per pixel
-    # model = UNet(n_channels=1, n_classes=args.classes, bilinear=args.bilinear)
-    model = UNet(n_channels=1, n_classes=args.classes, base_c=64, bilinear=args.bilinear, separable=True)
+    model = UNet(n_channels=1, n_classes=args.classes, bilinear=args.bilinear)
+    # model = UNet(n_channels=1, n_classes=args.classes, base_c=64, bilinear=args.bilinear, separable=True)
     model = model.to(memory_format=torch.channels_last)
 
     logging.info(f'Network:\n'
@@ -280,9 +281,10 @@ if __name__ == '__main__':
                  f'\t{"Bilinear" if model.bilinear else "Transposed conv"} upscaling')
 
     if args.load:
-        state_dict = torch.load(args.load, map_location=device)
-        del state_dict['mask_values']
-        model.load_state_dict(state_dict)
+        model.load_state_dict(torch.load(args.load, map_location=device))
+        # state_dict = torch.load(args.load, map_location=device)
+        # del state_dict['mask_values']
+        # model.load_state_dict(state_dict)
         logging.info(f'Model loaded from {args.load}')
 
     model.to(device=device)

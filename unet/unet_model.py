@@ -10,13 +10,13 @@ class UNet(nn.Module):
         self.n_classes = n_classes
         self.bilinear = bilinear
 
-        self.inc = (DoubleConv(n_channels, base_c))
+        self.inc = (DoubleConv(n_channels, base_c,separable=separable))
         self.down1 = (Down(base_c, base_c*2,separable=separable))
         self.down2 = (Down(base_c*2, base_c*4,separable=separable))
         self.down3 = (Down(base_c*4, base_c*8,separable=separable))
         factor = 2 if bilinear else 1
-        self.down4 = (Down(base_c*8, base_c*16 // factor))
-        self.up1 = (Up(base_c*16, base_c*8 // factor, bilinear))
+        self.down4 = (Down(base_c*8, base_c*16 // factor,separable=separable))
+        self.up1 = (Up(base_c*16, base_c*8 // factor, bilinear,separable=separable))
         self.up2 = (Up(base_c*8, base_c*4 // factor, bilinear,separable=separable))
         self.up3 = (Up(base_c*4, base_c*2 // factor, bilinear,separable=separable))
         self.up4 = (Up(base_c*2, base_c, bilinear,separable=separable))

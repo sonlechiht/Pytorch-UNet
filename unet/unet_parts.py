@@ -8,10 +8,14 @@ class depthwise_separable_conv(nn.Module):
     def __init__(self, nin, kernels_per_layer, nout, kernel_size,padding,bias):
         super(depthwise_separable_conv, self).__init__()
         self.depthwise = nn.Conv2d(nin, nin * kernels_per_layer, kernel_size=kernel_size, padding=padding, groups=nin, bias=bias)
+        self.batchnorm = nn.BatchNorm2d(nin * kernels_per_layer)
+        self.relu = nn.ReLU(inplace=True)
         self.pointwise = nn.Conv2d(nin * kernels_per_layer, nout, kernel_size=1,bias=bias)
 
     def forward(self, x):
         out = self.depthwise(x)
+        out = self.batchnorm(out)
+        out = self.relu(out)
         out = self.pointwise(out)
         return out
 
@@ -45,6 +49,27 @@ class DoubleConv(nn.Module):
     def forward(self, x):
         return self.double_conv(x)
 
+class Conv(nn.Module):
+    """(convolution => [BN] => ReLU) * 2"""
+
+    def __init__(self, in_channels, out_channels, separable=False):
+        super().__init__()
+
+        if not separable:
+            self.conv = nn.Sequential(
+                nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1, bias=False),
+                nn.BatchNorm2d(out_channels),
+                nn.ReLU(inplace=True)
+            )
+        else:
+            self.conv = nn.Sequential(
+                depthwise_separable_conv(in_channels, 1, out_channels, kernel_size=3, padding=1, bias=False),
+                nn.BatchNorm2d(out_channels),
+                nn.ReLU(inplace=True)
+            )
+
+    def forward(self, x):
+        return self.conv(x)
 
 class Down(nn.Module):
     """Downscaling with maxpool then double conv"""
