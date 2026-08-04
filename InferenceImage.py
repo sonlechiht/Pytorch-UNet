@@ -200,7 +200,9 @@ def infer_image_custom(model, img_np, threshold=SIZE_THRESHOLD, pad=PAD):
             "TL": img_np[:mh,  :mw ],
             "TR": img_np[:mh,  mw: ],
             "BL": img_np[mh:,  :mw ],
-            "BR": np.flip(img_np[mh:,  mw: ], axis=None),
+            "BR": img_np[mh:,  mw: ],
+            # "BL": np.flip(img_np[mh:,  mw: ], axis=1),
+            # "BR": np.flip(img_np[mh:,  mw: ], axis=None),
         }
 
         print(f"  Ảnh lớn ({H}x{W}) → chia 4 tile: TL{tiles['TL'].shape}, TR{tiles['TR'].shape}, "
@@ -213,7 +215,8 @@ def infer_image_custom(model, img_np, threshold=SIZE_THRESHOLD, pad=PAD):
 
         # ── Ghép lại ────────────────────────────────────────────────────────────
         top    = np.concatenate([results["TL"], results["TR"]], axis=1)
-        bottom = np.concatenate([results["BL"], np.flip(results["BR"], axis=None)], axis=1)
+        bottom = np.concatenate([results["BL"], results["BR"]], axis=1)
+        # bottom = np.concatenate([np.flip(results["BL"], axis=1), np.flip(results["BR"], axis=None)], axis=1)
         merged = np.concatenate([top, bottom], axis=0)
 
         # Đảm bảo kích thước đầu ra khớp với đầu vào (phòng trường hợp lệch 1px)
@@ -259,22 +262,22 @@ def infer_image_custom(model, img_np, threshold=SIZE_THRESHOLD, pad=PAD):
 # ─────────────────────────────────────────────
 # Main
 # ─────────────────────────────────────────────
-model_path = "savecheckpoints/checkpoints20260515_60-80/checkpoint_epoch20.pth"
+model_path = "savecheckpoints/checkpoints20260526_80-100/checkpoint_epoch10.pth"
 model = UNet(n_channels=1, n_classes=1)
 model.load_state_dict(torch.load(model_path, map_location=device))
 print(f"Model dtype: {next(model.parameters()).dtype}")
 model.to(device)
 model.eval()
 
-_min = 46484
-_max = 50937
-nk   = 0
+_min = 45400
+_max = 54987
+nk   = 1
 step = 1
 tic = time.time()
 for i in range(0, 4**nk, step):
     for j in range(i, i + step):
         input_image = (
-            f"G:\\AutoImageProcessing\\WaferData\\FimilarOutput\\MitsElec_3inch_01_220_0.000_0.000_26Aug21_115129_-91.351_Survey_003\\Input\\Branch_{nk}_{j}.tif"
+            f"G:\\AutoImageProcessing\\WaferData\\FimilarOutput\\L21-040\\Input\\Branch_{nk}_{j}.tif"
         )
 
         print(f"Processing Branch_{nk}_{j} ...")

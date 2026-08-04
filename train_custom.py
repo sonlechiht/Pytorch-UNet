@@ -23,7 +23,7 @@ from pytorch_msssim import ssim
 
 dir_img = Path('./traindata/data17/imgs/')
 dir_mask = Path('./traindata/data17/masks/')
-dir_checkpoint = Path('./savecheckpoints/checkpoints20260601_20-40/')
+dir_checkpoint = Path('./savecheckpoints/checkpoints20260610_65-80/')
 
 import torch.nn.functional as F
 
@@ -165,7 +165,8 @@ def train_model(
     grad_scaler = torch.cuda.amp.GradScaler(enabled=amp)
 
     # Loss functions
-    l1_loss = nn.L1Loss()
+    f_loss = nn.L1Loss()
+    # f_loss = nn.MSELoss()
 
     global_step = 0
 
@@ -202,16 +203,16 @@ def train_model(
                     preds = images*(1 + residual_pred)
 
                     # L1 loss
-                    loss_l1 = l1_loss(preds, targets)
+                    loss_ = f_loss(preds, targets)
 
                     # SSIM loss
                     loss_ssim = 1 - ssim(preds, targets, data_range=1)
 
                     # Edge loss (Gradient)
-                    # loss_edge = edge_loss(preds, targets)
+                    loss_edge = edge_loss(preds, targets)
                     
-                    # loss = 0.6 * loss_l1 + 0.2 * loss_ssim + 0.2 * loss_edge
-                    loss = 0.7 * loss_l1 + 0.3 * loss_ssim 
+                    loss = 0.6 * loss_ + 0.2 * loss_ssim + 0.2 * loss_edge
+                    # loss = 0.8 * loss_ + 0.2 * loss_ssim 
 
                 optimizer.zero_grad(set_to_none=True)
 
@@ -246,7 +247,7 @@ def train_model(
 
 def get_args():
     parser = argparse.ArgumentParser(description='Train the UNet on images and target masks')
-    parser.add_argument('--epochs', '-e', metavar='E', type=int, default=20, help='Number of epochs')
+    parser.add_argument('--epochs', '-e', metavar='E', type=int, default=50, help='Number of epochs')
     parser.add_argument('--batch-size', '-b', dest='batch_size', metavar='B', type=int, default=8, help='Batch size')
     parser.add_argument('--learning-rate', '-l', metavar='LR', type=float, default=1e-4,
                         help='Learning rate', dest='lr')
@@ -263,7 +264,7 @@ def get_args():
 if __name__ == '__main__':
     args = get_args()
     args.load = ""
-    args.load = "savecheckpoints/checkpoints20260601/checkpoint_epoch20.pth"
+    args.load = "savecheckpoints/checkpoints20260610_45-60/checkpoint_epoch20.pth"
     logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     logging.info(f'Using device {device}')
